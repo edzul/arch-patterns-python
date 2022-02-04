@@ -25,6 +25,31 @@ class SqlRepository(AbstractRepository):
                 qty=batch._purchased_quantity, eta=batch.eta)
         )
 
+        batch_row = self.session.execute(
+            'SELECT id FROM batches where reference=:reference and sku=:sku ',
+            dict(reference=batch.reference, sku=batch.sku)
+
+        ).fetchone()
+
+        for o in batch._allocations:
+            self.session.execute(
+                'INSERT INTO order_lines(orderid, sku, qty)'
+                ' VALUES(:orderid, :sku, :qty)',
+                dict(orderid=o.orderid, sku=o.sku, qty=o.qty)
+            )
+            
+            orderline_row = self.session.execute(
+                'SELECT id FROM order_lines WHERE '
+                ' orderid=:orderid and sku=:sku',
+                dict(orderid=o.orderid, sku=o.sku)
+            ).fetchone()
+
+            self.session.execute(
+                'INSERT INTO allocations(orderline_id, batch_id)'
+                ' VALUES(:orderline_id, :batch_id)',
+                dict(orderline_id=orderline_row.id, batch_id=batch_row.id)
+            )
+
     def get(self, reference) -> model.Batch:
         # self.session.execute('SELECT ??
         batch_row = self.session.execute(
